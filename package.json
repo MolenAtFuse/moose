@@ -1,0 +1,15 @@
+{
+  "name": "moose",
+  "version": "1.0.0",
+  "description": "a MOO for fuSE",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js"
+  },
+  "author": "alex mole / fuse games",
+  "license": "ISC",
+  "dependencies": {
+    "nodemon": "^3.0.1",
+    "sqlite3": "^5.1.6"
+  }
+}
