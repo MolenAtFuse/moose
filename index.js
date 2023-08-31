@@ -1,9 +1,12 @@
-const crypto = require('node:crypto');
-const net = require('node:net');
+import { createHash } from 'node:crypto';
+import { createServer } from 'node:net';
 
 const PORT = 8889;
 const NL = '\r\n';
 const NL2 = NL + NL;
+
+const TelnetEnableEcho = new Uint8Array([255, 252, 1]);
+const TelnetDisableEcho = new Uint8Array([255, 251, 1]);
 
 const WelcomeMsg =  '' +
 '-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n' +
@@ -81,7 +84,7 @@ class Place extends Thing {
 
 
 const getPasswordHash = (username, password) => {
-    const hash = crypto.createHash('sha256');
+    const hash = createHash('sha256');
     hash.update(`${username}!${password}`);
     const hashed = hash.digest('hex');
     return hashed;
@@ -189,7 +192,9 @@ class LoginFlow {
             if (input.length > 0) {
                 this.username = input;
                 conn.write(`okedoke! what's your password? > `);
+                //conn.write(TelnetDisableEcho);
                 this.phase = 'loginpass';
+                state.hideInput = true;
             }
         }
         else if (this.phase == 'loginpass') {
@@ -207,6 +212,8 @@ class LoginFlow {
                     state.user = user;
                     state.player = player;
 
+                    //conn.write(TelnetEnableEcho);
+                    state.hideInput = false;
                     conn.write(`welcome back ${this.username}!${NL}${NL}`);
 
                     return new AdventureFlow(conn, state);
@@ -240,10 +247,11 @@ class AdventureFlow {
 
 
 
-const server = net.createServer((c) => {
+const server = createServer((c) => {
     const connId = `${c.remoteAddress}:${c.remotePort}`;
     console.log(`client connected: ${connId}`);
     c.write(WelcomeMsg);
+    //c.write(TelnetEnableEcho);
 
     const state = { conn:c, connId };
     let flow = new LoginFlow(c, state);
@@ -254,7 +262,23 @@ const server = net.createServer((c) => {
         console.log(`client disconnected: ${connId}`);
     });
     c.on('data', d=>{
+        // just ignore any telnet commands and hope that's ok
+        if (d[0] == 255) {
+            console.log(`${connId}: IAC: ${d.toString('hex')}`);
+            return;
+        }
+        
         line += d;
+
+        if (state.hideInput) {
+            const backspace = new Uint8Array([8]);
+            for (let i=0; i<d.length; ++i) {
+                c.write(backspace);
+            }
+            for (let i=0; i<d.length; ++i) {
+                c.write('*');
+            }
+        }
 
         // TODO: handle d containing multiple lines
         if (line.endsWith('\n')) {
