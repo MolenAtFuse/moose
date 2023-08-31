@@ -1,9 +1,13 @@
-import { createHash } from 'node:crypto';
-import { createServer } from 'node:net';
+const crypto = require('node:crypto');
+const net = require('node:net');
+
+const moo = require('./moo');
+const mootils = require('./mootils');
+
+const NL = mootils.NL;
+const NL2 = mootils.NL2;
 
 const PORT = 8889;
-const NL = '\r\n';
-const NL2 = NL + NL;
 
 const TelnetEnableEcho = new Uint8Array([255, 252, 1]);
 const TelnetDisableEcho = new Uint8Array([255, 251, 1]);
@@ -19,72 +23,11 @@ const WelcomeMsg =  '' +
 '-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n\r\n';
 
 
-const listToStr = (list, sing='', plur='') => {
-    if (list.length > 0 && typeof list[0] !== 'string') {
-        return listToStr(list.map(thing => thing.title), sing, plur);
-    }
 
-    if (list.length == 1) {
-        return sing ? `${list[0]} ${sing}` : list[0];
-    }
-    if (list.length == 0) {
-        return sing ? `Nothing ${sing}` : 'Nothing';
-    }
-    const head = list.slice(0, list.length-1).join(', ');
-    const tail = list[list.length-1];
-    if (plur) {
-        return `${head} and ${tail} ${plur}`;
-    }
-    return `${head} and ${tail}`;
-};
-
-
-class Thing {
-    constructor(id) {
-        this.id = id;
-        this.title = 'A Formless Idea';
-        this.description = 'A greyish lump of soft, warm matter. It desperately wants to become something.';
-        this.holds = [];
-    }
-
-    overview() {
-        return `${this.title}. Contains ${listToStr(this.holds)}.`;
-    }
-
-    describe() {
-        return `${this.title}${NL2}${this.description}. It contains ${listToStr(this.holds)}.`;
-    }
-
-    thingAdded(thing) {
-        this.holds.push(thing);
-    }
-    thingRemoved(thing) {
-        const ix = this.holds.indexOf(thing);
-        if (ix >= 0) {
-            this.holds = this.holds.splice(ix, 1);
-        }
-    }
-}
-
-class Place extends Thing {
-    constructor(id, title, description) {
-        super(id);
-        this.title = title;
-        this.description = description;
-    }
-
-    overview() {
-        return `${this.title}. ${listToStr(this.holds, 'is', 'are')} here.`;
-    }
-
-    describe() {
-        return `${this.title}${NL2}${this.description}${NL2}${listToStr(this.holds, 'is', 'are')} here.`;
-    }
-}
 
 
 const getPasswordHash = (username, password) => {
-    const hash = createHash('sha256');
+    const hash = crypto.createHash('sha256');
     hash.update(`${username}!${password}`);
     const hashed = hash.digest('hex');
     return hashed;
@@ -99,7 +42,7 @@ class UserAccount {
     };
 };
 
-class Player extends Thing {
+class Player extends moo.Thing {
     constructor(userAccount) {
         super(userAccount.id);
 
@@ -124,8 +67,8 @@ class Player extends Thing {
 
 /// database shiz -------------
 const defaultPlaces = [
-    new Place(1, 'The Void', 'An unspeakable amount of nothing surrounds you, although you feel the energy of potential creation crackling just beneath the surface.'),
-    new Place(2, 'The Lobby', 'The lobby of a grand hotel. The marble floor and columns are polished and cool. Chairs are tucked around low tables, with copious lush plants providing privacy and peace.'),
+    new moo.Place(1, 'The Void', 'An unspeakable amount of nothing surrounds you, although you feel the energy of potential creation crackling just beneath the surface.'),
+    new moo.Place(2, 'The Lobby', 'The lobby of a grand hotel. The marble floor and columns are polished and cool. Chairs are tucked around low tables, with copious lush plants providing privacy and peace.'),
 ];
 const registeredUsers = { 'molen' : new UserAccount(99, 'molen', 'hi') };
 let nextFreeId = 100;
@@ -247,7 +190,7 @@ class AdventureFlow {
 
 
 
-const server = createServer((c) => {
+const server = net.createServer((c) => {
     const connId = `${c.remoteAddress}:${c.remotePort}`;
     console.log(`client connected: ${connId}`);
     c.write(WelcomeMsg);
