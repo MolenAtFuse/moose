@@ -1,3 +1,4 @@
+const moodb = require('./moodb')
 const mootils = require("./mootils");
 
 const NL = mootils.NL;
@@ -15,6 +16,11 @@ class Thing {
 
     toExtended() {
         return {};
+    }
+    loadExtended(data) {
+    }
+
+    initPostLoad() {
     }
 
     overview() {
@@ -40,6 +46,27 @@ class Thing {
 class Place extends Thing {
     constructor(id) {
         super(id);
+
+        this.exitIds = {};  // direction -> thingId
+        this.exits = {};    // direction -> thing
+    }
+
+    toExtended() {
+        return {
+            exitIds: this.exitIds,
+        };
+    }
+    loadExtended(data) {
+        if (data.exitIds) {
+            this.exitIds = data.exitIds;
+        }
+    }
+    
+    initPostLoad() {
+        this.exits = {};
+        for (const [direction, destId] of Object.entries(this.exitIds)) {
+            this.exits[direction] = moodb.getById(destId);
+        }
     }
 
     overview() {

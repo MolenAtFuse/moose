@@ -70,6 +70,11 @@ const init = async () => {
 
     await loadAllTheThings(db);
     await linkHolders(db);
+
+    console.log('[db] running initPostLoad on everything');
+    for (const thing of allThings.values()) {
+        thing.initPostLoad();
+    }
 };
 
 
