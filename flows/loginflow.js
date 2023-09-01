@@ -16,7 +16,7 @@ class LoginFlow {
         this.phase = 'loginorcreate'
     }
 
-    processInput(input, conn, state) {
+    async processInput(input, conn, state) {
         input = input.trim();
         if (this.phase == 'loginorcreate') {
             if (input == 'login') {
@@ -24,11 +24,12 @@ class LoginFlow {
                 this.phase = 'loginuser';
             }
             else if (input == 'create') {
-                conn.write('lovely! what should i call you? > ');
+                conn.write('welcome! what should we call you? > ');
                 this.phase = 'createuser';
             }
             else {
                 conn.write(`i'm afraid i don't know how to ${input}${NL}`);
+                return new LoginFlow(conn, state);
             }
         }
         else if (this.phase == 'loginuser') {
@@ -38,31 +39,37 @@ class LoginFlow {
                 this.phase = 'loginpass';
                 state.hideInput = true;
             }
+            else {
+                return new LoginFlow(conn, state);
+            }
         }
         else if (this.phase == 'loginpass') {
             if (input.length > 0) {
-                const user = mooser.loginUser(this.username, input);
-                if (user) {
-                    console.log(`${state.connId}: logged in user ${this.username}, id ${user.id}`);
-
-                    const player = moodb.getById(user.id);
-
-                    if (player.locationId < 0) {
-                        player.travelTo(moodb.entryLocation);
-                    }
-
-                    state.user = user;
-                    state.player = player;
-
-                    state.hideInput = false;
-                    conn.write(`welcome back ${this.username}!${NL}${NL}`);
-
-                    return new AdventureFlow(conn, state);
-                }
-                else {
-                    conn.write(`oh no, that login didn't work. try again!${NL}${NL}`);
-                    return new LoginFlow(conn, state);
-                }
+                moodb.authenticateUser(this.username, mooser.getPasswordHash(this.username, input))
+                    .catch(err => {
+                        state.hideInput = false;
+                        console.log(err);
+                        conn.write(`oh no, that login didn't work. try again!${NL}${NL}`);
+                        return new LoginFlow(conn, state);
+                    })
+                    .then(player => {
+                        console.log(`${state.connId}: logged in user ${this.username}, id ${player.id}`);
+    
+                        if (player.locationId < 0) {
+                            const entryLocation = moodb.findThingByTitle('The Lobby');
+                            player.travelTo(entryLocation);
+                        }
+    
+                        state.player = player;
+    
+                        state.hideInput = false;
+                        conn.write(`welcome back ${this.username}!${NL}${NL}`);
+    
+                        return new AdventureFlow(conn, state);
+                    });
+            }
+            else {
+                return new LoginFlow(conn, state);
             }
         }
     }

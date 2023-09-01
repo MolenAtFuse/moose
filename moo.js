@@ -8,8 +8,8 @@ const listToStr = mootils.listToStr;
 class Thing {
     constructor(id) {
         this.id = id;
-        this.title = 'A Formless Idea';
-        this.description = 'A greyish lump of soft, warm matter. It desperately wants to become something.';
+        //this.title = 'A Formless Idea';
+        //this.description = 'A greyish lump of soft, warm matter. It desperately wants to become something.';
         this.holds = [];
     }
 
@@ -33,12 +33,9 @@ class Thing {
 }
 
 
-
 class Place extends Thing {
-    constructor(id, title, description) {
+    constructor(id) {
         super(id);
-        this.title = title;
-        this.description = description;
     }
 
     overview() {
@@ -52,15 +49,21 @@ class Place extends Thing {
 
 
 class Player extends Thing {
-    constructor(userAccount) {
-        super(userAccount.id);
+    constructor(id, username) {
+        super(id);
 
-        this.title = userAccount.username;
+        this.title = username;
         this.description = 'A mysterious stranger';
 
         this.locationId = -1;
 
         this.state = null;
+    }
+
+    loadExtended(data) {
+        if (data.locationId) {
+            this.locationId = data.locationId;
+        }
     }
 
     travelTo(place) {
@@ -74,9 +77,39 @@ class Player extends Thing {
 };
 
 
+// deserialises a thing from the db
+const thingFactory = row => {
+    const cls = row.class_;
+
+    if (cls == 'Thing') {
+        const thing = new Thing(row.id);
+        thing.title = row.title;
+        thing.description = row.description;
+        return thing;
+    }
+
+    if (cls == 'Place') {
+        const place = new Place(row.id);
+        place.title = row.title;
+        place.description = row.description;
+        return place;
+    }
+
+    if (cls == 'Player') {
+        const player = new Player(row.id, row.title);
+        player.description = row.description;
+        player.loadExtended(JSON.parse(row.data));
+        return player;
+    }
+
+    console.error(`unable to create a Thing for row ${JSON.stringify(row)}`);
+};
+
 
 module.exports = {
     Thing,
     Place,
     Player,
+
+    thingFactory,
 };

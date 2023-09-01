@@ -20,7 +20,7 @@ class AdventureFlow {
         conn.write('> ');
     }
 
-    processInput(input, conn, state) {
+    async processInput(input, conn, state) {
         input = input.trim();
         conn.write(`i'm afraid i don't know how to ${input}${NL}`);
         conn.write('> ');

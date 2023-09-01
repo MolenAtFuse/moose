@@ -1,20 +1,42 @@
+const sqlite3 = require('sqlite3').verbose();
+const sqlite = require('sqlite');
+
 const moo = require('./moo');
 const mooser = require('./mooser');
 
 
-/// database shiz -------------
-const defaultPlaces = [
-    new moo.Place(1, 'The Void', 'An unspeakable amount of nothing surrounds you, although you feel the energy of potential creation crackling just beneath the surface.'),
-    new moo.Place(2, 'The Lobby', 'The lobby of a grand hotel. The marble floor and columns are polished and cool. Chairs are tucked around low tables, with copious lush plants providing privacy and peace.'),
-];
-let nextFreeId = 100;
-const allThings = new Map([
-    ...defaultPlaces.map(place => [place.id, place]),
-    ...Object.values(mooser.registeredUsers).map(account => [ account.id, new moo.Player(account) ]),
-]);
+const DbConfig = {
+    filename: './data/moose.db',
+    driver: sqlite3.Database,
+};
 
-console.log(`loaded ${allThings.size} things`);
-/// ---------------------------
+
+let db = null;
+const allThings = new Map();
+
+const init = async () => {    
+    console.log('[db] opening db');
+    db = await sqlite.open(DbConfig);
+
+    console.log('[db] migrating db');
+    await db.migrate();
+
+    console.log('[db] loading things');
+    try {
+        await db.each('SELECT * FROM thing', [], (err, row) => {
+            if (err) {
+                throw err;
+            }
+
+            const thing = moo.thingFactory(row);
+            allThings.set(thing.id, thing);
+        });
+
+    } catch (e) {
+        console.error(e);
+    }
+    console.log(`[db] loaded ${allThings.size} things`);
+};
 
 
 const getById = id => {
@@ -31,13 +53,34 @@ const findThingByTitle = title => {
     return null;
 };
 
-const entryLocation = findThingByTitle('The Lobby');
+
+const authenticateUser = async (username, pwdHash) => {
+    console.log(`[db] authUser ${username}`);
+
+    const row = await db.get('SELECT * FROM user WHERE username = ?', username);
+
+    if (!row) {
+        throw new Error(`unknown user: '${username}`);
+    }
+
+    if (row.pwdhash != pwdHash) {
+        throw new Error('bad password');
+    }
+
+    const player = getById(row.id);
+    if (!player) {
+        throw new Error(`corrupted db: user id ${row.id} has no matching Player`);
+    }
+
+    return player;
+};
 
 
 module.exports = {
-    getById,
+    init,
 
+    getById,
     findThingByTitle,
-    
-    entryLocation,
+
+    authenticateUser,
 };
