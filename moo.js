@@ -32,6 +32,8 @@ class Thing {
     }
 }
 
+
+
 class Place extends Thing {
     constructor(id, title, description) {
         super(id);
@@ -49,7 +51,32 @@ class Place extends Thing {
 }
 
 
+class Player extends Thing {
+    constructor(userAccount) {
+        super(userAccount.id);
+
+        this.title = userAccount.username;
+        this.description = 'A mysterious stranger';
+
+        this.locationId = -1;
+
+        this.state = null;
+    }
+
+    travelTo(place) {
+        if (this.locationId >= 0) {
+            allThings.get(this.locationId).thingRemoved(this);
+        }
+
+        this.locationId = place.id;
+        place.thingAdded(this);
+    }
+};
+
+
+
 module.exports = {
     Thing,
     Place,
+    Player,
 };
