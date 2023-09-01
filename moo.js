@@ -13,6 +13,10 @@ class Thing {
         this.holds = [];
     }
 
+    toExtended() {
+        return {};
+    }
+
     overview() {
         return `${this.title}. Contains ${listToStr(this.holds)}.`;
     }
@@ -60,6 +64,11 @@ class Player extends Thing {
         this.state = null;
     }
 
+    toExtended() {
+        return {
+            locationId: this.locationId,
+        };
+    }
     loadExtended(data) {
         if (data.locationId) {
             this.locationId = data.locationId;
@@ -81,6 +90,9 @@ class Player extends Thing {
 const thingFactory = row => {
     const cls = row.class_;
 
+    const extendedJson = row.data ?? "{}";
+    const extended = JSON.parse(extendedJson);
+
     if (cls == 'Thing') {
         const thing = new Thing(row.id);
         thing.title = row.title;
@@ -98,7 +110,7 @@ const thingFactory = row => {
     if (cls == 'Player') {
         const player = new Player(row.id, row.title);
         player.description = row.description;
-        player.loadExtended(JSON.parse(row.data));
+        player.loadExtended(extended);
         return player;
     }
 

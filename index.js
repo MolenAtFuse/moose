@@ -45,7 +45,9 @@ const runServer = () => {
                     c.write(backspace);
                 }
                 for (let i=0; i<d.length; ++i) {
-                    c.write('*');
+                    if (d[i] != 10 && d[i] != 13) {     // ignore CR & LF
+                        c.write('*');
+                    }
                 }
             }
 

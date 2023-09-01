@@ -44,14 +44,10 @@ class LoginFlow {
             }
         }
         else if (this.phase == 'loginpass') {
-            if (input.length > 0) {
-                moodb.authenticateUser(this.username, mooser.getPasswordHash(this.username, input))
-                    .catch(err => {
-                        state.hideInput = false;
-                        console.log(err);
-                        conn.write(`oh no, that login didn't work. try again!${NL}${NL}`);
-                        return new LoginFlow(conn, state);
-                    })
+            if (input.length > 0) {                
+                state.hideInput = false;
+
+                return moodb.authenticateUser(this.username, mooser.getPasswordHash(this.username, input))
                     .then(player => {
                         console.log(`${state.connId}: logged in user ${this.username}, id ${player.id}`);
     
@@ -62,14 +58,71 @@ class LoginFlow {
     
                         state.player = player;
     
-                        state.hideInput = false;
-                        conn.write(`welcome back ${this.username}!${NL}${NL}`);
+                        conn.write(`${NL2}welcome back ${this.username}!${NL2}${NL2}`);
     
                         return new AdventureFlow(conn, state);
+                    })
+                    .catch(err => {
+                        console.log(err.message);
+                        conn.write(`oh no, that login didn't work. try again!${NL}${NL}`);
+                        return new LoginFlow(conn, state);
                     });
             }
             else {
                 return new LoginFlow(conn, state);
+            }
+        }
+
+        else if (this.phase == 'createuser') {
+            if (input.length > 2) {
+                const taken = await moodb.isUsernameTaken(input);
+                if (!taken) {
+                    this.username = input;
+
+                    conn.write(`okedoke! what password would you like? > `);
+                    this.phase = 'createpass';
+                    state.hideInput = true;
+                }
+                else {
+                    conn.write(`we already have someone here by that name. try again! > `);
+                }
+            }
+            else {
+                conn.write(`oops, that's a bit short. try something longer! > `);
+            }
+        }
+        else if (this.phase == 'createpass') {
+            if (input.length > 3) {
+                this.pwdHash = mooser.getPasswordHash(this.username, input);
+                conn.write(`looks good - please enter it again for luck... > `);
+                this.phase = 'validatepass';
+                state.hideInput = true;
+            }
+            else {
+                conn.write(`oops, that's a bit short. try another! > `);
+            }
+        }
+        else if (this.phase == 'validatepass') {
+            const checkHash = mooser.getPasswordHash(this.username, input);
+            if (checkHash == this.pwdHash) {
+                
+                state.hideInput = false;
+                
+                const player = await moodb.createUser(this.username, checkHash);
+
+                console.log(`${state.connId}: created & logged in user ${this.username}, id ${player.id}`);
+                const entryLocation = moodb.findThingByTitle('The Lobby');
+                player.travelTo(entryLocation);
+    
+                state.player = player;
+    
+                conn.write(`welcome to MOOse,  ${this.username}!${NL}${NL}`);
+    
+                return new AdventureFlow(conn, state);
+            }
+            else {
+                conn.write(`hm, seems like they didn't match. once more from the top! > `);
+                this.phase = 'createpass';
             }
         }
     }

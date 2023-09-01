@@ -14,14 +14,15 @@ const DbConfig = {
 let db = null;
 const allThings = new Map();
 
-const init = async () => {    
-    console.log('[db] opening db');
-    db = await sqlite.open(DbConfig);
 
-    console.log('[db] migrating db');
-    await db.migrate();
+const getById = id => {
+    return allThings.get(id);
+};
 
+
+const loadAllTheThings = async (db) => {
     console.log('[db] loading things');
+
     try {
         await db.each('SELECT * FROM thing', [], (err, row) => {
             if (err) {
@@ -35,13 +36,42 @@ const init = async () => {
     } catch (e) {
         console.error(e);
     }
-    console.log(`[db] loaded ${allThings.size} things`);
+
+    console.log(`[db] ...loaded ${allThings.size} things`);
+};
+
+const linkHolders = async (db) => {
+    console.log('[db] putting everything in its right place');
+
+    try {
+        await db.each('SELECT * FROM hold', [], (err, row) => {
+            if (err) {
+                throw err;
+            }
+
+            const holder = getById(row.holderId);
+            const held = getById(row.heldId);
+
+            holder.holds.push(held);
+        });
+
+    } catch (e) {
+        console.error(e);
+    }
 };
 
 
-const getById = id => {
-    return allThings.get(id);
+const init = async () => {    
+    console.log('[db] opening db');
+    db = await sqlite.open(DbConfig);
+
+    console.log('[db] migrating db');
+    await db.migrate();
+
+    await loadAllTheThings(db);
+    await linkHolders(db);
 };
+
 
 
 const findThingByTitle = title => {
@@ -76,6 +106,32 @@ const authenticateUser = async (username, pwdHash) => {
 };
 
 
+const createUser = async (username, pwdHash) => {
+    console.log(`[db] createUser ${username}`);
+
+    // hm, this feels wrong...
+    const thing = await db.run(`INSERT INTO thing (class_, title, description) VALUES ('Player',?,'A mysterious stranger')`, username);
+    const playerId = thing.lastID;
+    console.log(`[db] ... created Player as id ${playerId}`);
+
+    await db.run('INSERT INTO user (id, username, pwdhash) VALUES (?,?,?)', playerId, username, pwdHash);
+
+    // this feels even wronger
+    const row = await db.get('SELECT * FROM thing WHERE id=?', playerId);
+    const player = moo.thingFactory(row);
+    allThings.set(player.id, player);
+
+    return player;
+};
+
+
+
+const isUsernameTaken = async (username) => {
+    const row = await db.get('SELECT * FROM user WHERE username = ?', username);
+    return (typeof row !== 'undefined');
+};
+
+
 module.exports = {
     init,
 
@@ -83,4 +139,6 @@ module.exports = {
     findThingByTitle,
 
     authenticateUser,
+    createUser,
+    isUsernameTaken,
 };
