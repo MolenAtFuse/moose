@@ -9,8 +9,8 @@ const listToStr = mootils.listToStr;
 class Thing {
     constructor(id) {
         this.id = id;
-        //this.title = 'A Formless Idea';
-        //this.description = 'A greyish lump of soft, warm matter. It desperately wants to become something.';
+        this.title = 'A Formless Idea';
+        this.description = 'A greyish lump of soft, warm matter. It desperately wants to become something.';
         this.holds = [];
     }
 
@@ -47,25 +47,27 @@ class Place extends Thing {
     constructor(id) {
         super(id);
 
-        this.exitIds = {};  // direction -> thingId
-        this.exits = {};    // direction -> thing
+        this.exitIds = new Map();  // direction -> thingId
+        this.exits = new Map();    // direction -> thing
     }
 
     toExtended() {
         return {
-            exitIds: this.exitIds,
+            exitIds: [...this.exitIds.entries()],
         };
     }
     loadExtended(data) {
         if (data.exitIds) {
-            this.exitIds = data.exitIds;
+            for (const [dir, id] of data.exitIds) {
+                this.exitIds.set(dir, id);
+            }
         }
     }
     
     initPostLoad() {
-        this.exits = {};
-        for (const [direction, destId] of Object.entries(this.exitIds)) {
-            this.exits[direction] = moodb.getById(destId);
+        this.exits = new Map();
+        for (const [direction, destId] of this.exitIds.entries()) {
+            this.exits.set(direction) = moodb.getById(destId);
         }
     }
 

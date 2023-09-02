@@ -114,17 +114,10 @@ const authenticateUser = async (username, pwdHash) => {
 const createUser = async (username, pwdHash) => {
     console.log(`[db] createUser ${username}`);
 
-    // hm, this feels wrong...
-    const thing = await db.run(`INSERT INTO thing (class_, title, description) VALUES ('Player',?,'A mysterious stranger')`, username);
-    const playerId = thing.lastID;
-    console.log(`[db] ... created Player as id ${playerId}`);
+    const player = await newThing('Player', username, 'A mysterious stranger');
+    console.log(`[db] ... created Player '${username}' as id ${player.id}`);
 
-    await db.run('INSERT INTO user (id, username, pwdhash) VALUES (?,?,?)', playerId, username, pwdHash);
-
-    // this feels even wronger
-    const row = await db.get('SELECT * FROM thing WHERE id=?', playerId);
-    const player = moo.thingFactory(row);
-    allThings.set(player.id, player);
+    await db.run('INSERT INTO user (id, username, pwdhash) VALUES (?,?,?)', player.id, username, pwdHash);
 
     return player;
 };
@@ -137,11 +130,27 @@ const isUsernameTaken = async (username) => {
 };
 
 
+
+const newThing = async (class_, title, description) => {
+    const res = await db.run(`INSERT INTO thing (class_, title, description) VALUES (?,?,?)`, class_, title, description);
+    const thingId = res.lastID;
+
+    // this feels even wronger
+    const row = await db.get('SELECT * FROM thing WHERE id=?', thingId);
+    const thing = moo.thingFactory(row);
+    allThings.set(thing.id, thing);
+    
+    return thing;
+};
+
+
 module.exports = {
     init,
 
     getById,
     findThingByTitle,
+
+    newThing,
 
     authenticateUser,
     createUser,

@@ -33,7 +33,7 @@ const runServer = () => {
         c.on('data', async d=>{
             // just ignore any telnet commands and hope that's ok
             if (d[0] == 255) {
-                console.log(`${connId}: IAC: ${d.toString('hex')}`);
+                console.log(`${connId}: IAC: ${[...d].join(',')}`);
                 return;
             }
             

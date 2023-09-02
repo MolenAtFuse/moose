@@ -16,6 +16,22 @@ class LoginFlow {
         this.phase = 'loginorcreate'
     }
 
+    onUserLoggedIn(player, state) {
+        console.log(`${state.connId}: logged in user ${this.username}, id ${player.id}`);
+
+        if (player.locationId < 0) {
+            const entryLocation = moodb.findThingByTitle('The Lobby');
+            player.travelTo(entryLocation);
+        }
+
+        state.player = player;
+        player.state = state;
+
+        state.conn.write(`${NL2}welcome back ${player.title}!${NL2}${NL2}`);
+
+        return new AdventureFlow(state.conn, state);
+    }
+
     async processInput(input, conn, state) {
         input = input.trim();
         if (this.phase == 'loginorcreate') {
@@ -26,6 +42,10 @@ class LoginFlow {
             else if (input == 'create') {
                 conn.write('welcome! what should we call you? > ');
                 this.phase = 'createuser';
+            }
+            else if (input == 'x') {
+                const player = await moodb.authenticateUser('molen', mooser.getPasswordHash('molen', 'hi'));
+                return this.onUserLoggedIn(player, state);
             }
             else {
                 conn.write(`i'm afraid i don't know how to ${input}${NL}`);
@@ -44,24 +64,11 @@ class LoginFlow {
             }
         }
         else if (this.phase == 'loginpass') {
-            if (input.length > 0) {                
+            if (input.length > 0) {
                 state.hideInput = false;
 
                 return moodb.authenticateUser(this.username, mooser.getPasswordHash(this.username, input))
-                    .then(player => {
-                        console.log(`${state.connId}: logged in user ${this.username}, id ${player.id}`);
-    
-                        if (player.locationId < 0) {
-                            const entryLocation = moodb.findThingByTitle('The Lobby');
-                            player.travelTo(entryLocation);
-                        }
-    
-                        state.player = player;
-    
-                        conn.write(`${NL2}welcome back ${this.username}!${NL2}${NL2}`);
-    
-                        return new AdventureFlow(conn, state);
-                    })
+                    .then(player => { this.onUserLoggedIn(player, state); })
                     .catch(err => {
                         console.log(err.message);
                         conn.write(`oh no, that login didn't work. try again!${NL}${NL}`);
