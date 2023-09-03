@@ -1,8 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const sqlite = require('sqlite');
 
-const moo = require('./moo');
-const mooser = require('./mooser');
+// NB. moo loaded after exports defined to fix circular deps
 
 
 const DbConfig = {
@@ -15,9 +14,39 @@ let db = null;
 const allThings = new Map();
 
 
-const getById = id => {
-    return allThings.get(id);
+
+
+// deserialises a thing from the db
+const thingFactory = row => {
+    const cls = row.class_;
+
+    const extendedJson = row.data ?? "{}";
+    const extended = JSON.parse(extendedJson);
+
+    if (cls == 'Thing') {
+        const thing = new moo.Thing(row.id);
+        thing.title = row.title;
+        thing.description = row.description;
+        return thing;
+    }
+
+    if (cls == 'Place') {
+        const place = new moo.Place(row.id);
+        place.title = row.title;
+        place.description = row.description;
+        return place;
+    }
+
+    if (cls == 'Player') {
+        const player = new moo.Player(row.id, row.title);
+        player.description = row.description;
+        player.loadExtended(extended);
+        return player;
+    }
+
+    console.error(`unable to create a Thing for row ${JSON.stringify(row)}`);
 };
+
 
 
 const loadAllTheThings = async (db) => {
@@ -29,8 +58,8 @@ const loadAllTheThings = async (db) => {
                 throw err;
             }
 
-            const thing = moo.thingFactory(row);
-            allThings.set(thing.id, thing);
+            const thing = thingFactory(row);
+            allThings.set(+thing.id, thing);
         });
 
     } catch (e) {
@@ -65,6 +94,9 @@ const init = async () => {
     console.log('[db] opening db');
     db = await sqlite.open(DbConfig);
 
+    // foreign key constraints are disabled by default so we need to enable them
+    await db.run('PRAGMA foreign_keys = ON');
+
     console.log('[db] migrating db');
     await db.migrate();
 
@@ -79,6 +111,12 @@ const init = async () => {
 
 
 
+
+const getById = id => {
+    return allThings.get(+id);
+};
+
+
 const findThingByTitle = title => {
     for (let thing of allThings.values()) {
         if (thing.title == title) {
@@ -87,6 +125,45 @@ const findThingByTitle = title => {
     }
     return null;
 };
+
+
+const forAllThings = (fn) => {
+    for (const thing of allThings.values()) {
+        fn(thing);
+    }
+};
+
+
+
+
+const newThing = async (class_, title, description, state) => {
+    const res = await db.run(`INSERT INTO thing (class_, title, description) VALUES (?,?,?)`, class_, title, description);
+    const thingId = res.lastID;
+
+    // this feels silly
+    const row = await db.get('SELECT * FROM thing WHERE id=?', thingId);
+    const thing = thingFactory(row);
+    allThings.set(+thing.id, thing);
+
+    console.log(`created new ${class_} "${title}" id ${thingId} for player ${state ? state.player.title : '<none>'}`);
+    
+    return thing;
+};
+
+const nixThing = async (id, state) => {
+    id = +id;
+
+    console.log(`nixing thing ${id} for player ${state.player.title}`);
+
+    const res = await db.run(`DELETE FROM thing WHERE id = ?`, id);
+    allThings.delete(id);
+
+    if (res.changes !== 1) {
+        throw new Error(`removed unexpected number of rows: ${res.changes}`);
+    }
+};
+
+
 
 
 const authenticateUser = async (username, pwdHash) => {
@@ -130,18 +207,33 @@ const isUsernameTaken = async (username) => {
 };
 
 
+const forAllUsers = async(fn) => {
+    try {
+        await db.each('SELECT id, username FROM user', [], (err, row) => {
+            if (err) {
+                throw err;
+            }
 
-const newThing = async (class_, title, description) => {
-    const res = await db.run(`INSERT INTO thing (class_, title, description) VALUES (?,?,?)`, class_, title, description);
-    const thingId = res.lastID;
+            fn(row.id, row.username);
+        });
 
-    // this feels even wronger
-    const row = await db.get('SELECT * FROM thing WHERE id=?', thingId);
-    const thing = moo.thingFactory(row);
-    allThings.set(thing.id, thing);
-    
-    return thing;
+    } catch (e) {
+        console.error(e);
+    } 
 };
+
+
+
+
+const addHold = async (holderId, heldId) => {
+    // TODO: add a unique constraint to make sure we don't mess this up
+    await db.run('INSERT INTO hold (holderId, heldId) VALUES (?,?)', [holderId, heldId]);
+};
+
+const removeHold = async (holderId, heldId) => {
+    await db.run('DELETE FROM hold WHERE holderId=? AND heldId=?', [holderId, heldId]);
+};
+
 
 
 module.exports = {
@@ -150,9 +242,20 @@ module.exports = {
     getById,
     findThingByTitle,
 
+    forAllThings,
+
     newThing,
+    nixThing,
 
     authenticateUser,
     createUser,
     isUsernameTaken,
+    forAllUsers,
+
+    addHold,
+    removeHold,
 };
+
+
+const moo = require('./moo');
+

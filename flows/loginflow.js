@@ -16,12 +16,12 @@ class LoginFlow {
         this.phase = 'loginorcreate'
     }
 
-    onUserLoggedIn(player, state) {
+    async onUserLoggedIn(player, state) {
         console.log(`${state.connId}: logged in user ${this.username}, id ${player.id}`);
 
         if (player.locationId < 0) {
             const entryLocation = moodb.findThingByTitle('The Lobby');
-            player.travelTo(entryLocation);
+            await player.travelTo(entryLocation);
         }
 
         state.player = player;
@@ -45,7 +45,7 @@ class LoginFlow {
             }
             else if (input == 'x') {
                 const player = await moodb.authenticateUser('molen', mooser.getPasswordHash('molen', 'hi'));
-                return this.onUserLoggedIn(player, state);
+                return await this.onUserLoggedIn(player, state);
             }
             else {
                 conn.write(`i'm afraid i don't know how to ${input}${NL}`);
@@ -68,7 +68,9 @@ class LoginFlow {
                 state.hideInput = false;
 
                 return moodb.authenticateUser(this.username, mooser.getPasswordHash(this.username, input))
-                    .then(player => { this.onUserLoggedIn(player, state); })
+                    .then(async (player) => {
+                        return await this.onUserLoggedIn(player, state);
+                    })
                     .catch(err => {
                         console.log(err.message);
                         conn.write(`oh no, that login didn't work. try again!${NL}${NL}`);

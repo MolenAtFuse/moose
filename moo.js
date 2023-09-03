@@ -1,5 +1,5 @@
-const moodb = require('./moodb')
 const mootils = require("./mootils");
+// NB. moodb loaded after exports defined to fix circular deps
 
 const NL = mootils.NL;
 const NL2 = mootils.NL2;
@@ -31,14 +31,16 @@ class Thing {
         return `${this.title}${NL2}${this.description}. It contains ${listToStr(this.holds)}.`;
     }
 
-    thingAdded(thing) {
+    async thingAdded(thing) {
         this.holds.push(thing);
+        await moodb.addHold(this.id, thing.id);
     }
-    thingRemoved(thing) {
+    async thingRemoved(thing) {
         const ix = this.holds.indexOf(thing);
         if (ix >= 0) {
             this.holds = this.holds.splice(ix, 1);
         }
+        await moodb.removeHold(this.id, thing.id);
     }
 }
 
@@ -69,6 +71,11 @@ class Place extends Thing {
         for (const [direction, destId] of this.exitIds.entries()) {
             this.exits.set(direction) = moodb.getById(destId);
         }
+    }
+
+    addExit(direction, dest) {
+        this.exitIds.set(direction, dest.id);
+        this.exits.set(direction, dest);
     }
 
     overview() {
@@ -104,46 +111,15 @@ class Player extends Thing {
         }
     }
 
-    travelTo(place) {
+    async travelTo(place) {
         if (this.locationId >= 0) {
-            allThings.get(this.locationId).thingRemoved(this);
+            const oldPlace = moodb.getById(this.locationId);
+            await oldPlace.thingRemoved(this);
         }
 
         this.locationId = place.id;
-        place.thingAdded(this);
+        await place.thingAdded(this);
     }
-};
-
-
-// deserialises a thing from the db
-const thingFactory = row => {
-    const cls = row.class_;
-
-    const extendedJson = row.data ?? "{}";
-    const extended = JSON.parse(extendedJson);
-
-    if (cls == 'Thing') {
-        const thing = new Thing(row.id);
-        thing.title = row.title;
-        thing.description = row.description;
-        return thing;
-    }
-
-    if (cls == 'Place') {
-        const place = new Place(row.id);
-        place.title = row.title;
-        place.description = row.description;
-        return place;
-    }
-
-    if (cls == 'Player') {
-        const player = new Player(row.id, row.title);
-        player.description = row.description;
-        player.loadExtended(extended);
-        return player;
-    }
-
-    console.error(`unable to create a Thing for row ${JSON.stringify(row)}`);
 };
 
 
@@ -151,6 +127,6 @@ module.exports = {
     Thing,
     Place,
     Player,
-
-    thingFactory,
 };
+
+const moodb = require('./moodb')

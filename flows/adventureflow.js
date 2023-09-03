@@ -77,6 +77,21 @@ const parseCommand = (tokens, pattern) => {
 };
 
 
+const returnDirections = new Map([
+    ['e', 'w'], ['east', 'west'],
+    ['w', 'e'], ['west', 'east'],
+    ['s', 'n'], ['south', 'north'],
+    ['n', 's'], ['north', 'south'],
+    ['u', 'd'], ['up', 'down'],
+    ['d', 'u'], ['down', 'up'],
+]);
+const getReturnDirection = dir => {
+    if (returnDirections.has(dir)) {
+        return returnDirections.get(dir);
+    }
+    return undefined;
+};
+
 
 const infoCommands = {
     'look': async (tokens, state) => {
@@ -90,8 +105,8 @@ const buildingCommands = {
 
     // @dig e,east [oneway] to "Empty Cupboard"
     '@dig': async (tokens, state) => {
-        const parsed = parseCommand(tokens, '$directions ?oneway to $destination');
-        const directions = parsed.directions.split(',');
+        const cmd = parseCommand(tokens, '$directions ?oneway to $destination');
+        const directions = cmd.directions.split(',');
 
         // check for no dupe exits
         const here = state.currLocation;
@@ -99,16 +114,60 @@ const buildingCommands = {
             if (here.exits.has(dir)) {
                 throw new Error(`this room already has an exit from '${dir}'`);
             }
+
+            if (!cmd.oneway && typeof getReturnDirection(dir) === 'undefined') {
+                throw new Error(`i don't know the way back from "${dir}" (hint: add "oneway" after directions if you don't want a return path)`);
+            }
         }
 
         // TODO: check for dupe destination place name
 
-        const portal = await moodb.newThing('Thing', '<portal>', `Portal from ${here.title} to ${parsed.destination}`);
-        const there = await moodb.newThing('Place', parsed.destination, `The mist here is so thick you can't see anything`);
+        const there = await moodb.newThing('Place', cmd.destination, `The mist here is so thick you can't see anything`, state);
+
+        for (const dir of directions) {
+            here.addExit(dir, there);
+
+            if (!cmd.oneway) {
+                const rtnDir = getReturnDirection(dir);
+                there.addExit(rtnDir, here);
+            }
+        }
     },
 };
 
+
+const adminCommands = {
+
+    '@@ls': async (tokens, state) => {
+        moodb.forAllThings(thing => {
+            state.conn.write(`${thing.id}\t${thing.constructor.name}\t${thing.title}${NL}`);
+        });
+    },
+
+    '@@users': async (tokens, state) => {
+        await moodb.forAllUsers((id, username) => {
+            state.conn.write(`${id}\t${username}${NL}`);
+        });
+    },
+
+    '@@nix': async (tokens, state) => {
+        const cmd = parseCommand(tokens, '$id $title');
+        const thing = moodb.getById(cmd.id);
+        if (typeof thing === 'undefined') {
+            throw new Error(`we don't have a thing id ${cmd.id}`);
+        }
+        if (thing.title !== cmd.title) {
+            throw new Error(`thing id ${cmd.id} has mismatched title '${thing.title}'`);
+        }
+        console.log(state);
+        await moodb.nixThing(cmd.id, state);
+    },
+
+};
+
+
 const allCommands = {
+    ...adminCommands,
     ...infoCommands,
     ...buildingCommands,
 };
@@ -120,10 +179,13 @@ class AdventureFlow {
         conn.write(` adventure time${NL}`)
         conn.write(`****************${NL2}`)
 
-        state.currLocation = moodb.getById(state.player.locationId);
-        conn.write(state.currLocation.describe() + NL2);
+        this.arrivedAtLocation(moodb.getById(state.player.locationId), state);
+        state.conn.write('> ');
+    }
 
-        conn.write('> ');
+    arrivedAtLocation(location, state) {
+        state.currLocation = location;
+        state.conn.write(location.describe() + NL2);
     }
 
     async processInput(input, conn, state) {
@@ -131,7 +193,6 @@ class AdventureFlow {
         console.log(tokens);
 
         if (tokens.length > 0) {
-            console.log(state.currLocation);
             const command = tokens.shift();
             if (typeof allCommands[command] !== 'undefined') {
                 try {
@@ -139,11 +200,14 @@ class AdventureFlow {
                 }
                 catch (err) {
                     console.log(err);
-                    conn.write(`i didn't quite understand that: ${err.message}`);
+                    conn.write(`i didn't quite understand that ("${err.message}")${NL}`);
                 }
             }
             else if (state.currLocation.exits.has(command)) {
-                // TODO: move there!
+                const newPlace = state.currLocation.exits.get(command);
+                console.log(`moving to ${newPlace.title}, id ${newPlace.id}`);
+                await state.player.travelTo(newPlace);
+                this.arrivedAtLocation(newPlace, state);
             }
             else {
                 conn.write(`i'm afraid i don't know how to ${input}${NL}`);
