@@ -11,41 +11,8 @@ const DbConfig = {
 
 
 let db = null;
+let dbReady = false;
 const allThings = new Map();
-
-
-
-
-// deserialises a thing from the db
-const thingFactory = row => {
-    const cls = row.class_;
-
-    const extendedJson = row.data ?? "{}";
-    const extended = JSON.parse(extendedJson);
-
-    if (cls == 'Thing') {
-        const thing = new moo.Thing(row.id);
-        thing.title = row.title;
-        thing.description = row.description;
-        return thing;
-    }
-
-    if (cls == 'Place') {
-        const place = new moo.Place(row.id);
-        place.title = row.title;
-        place.description = row.description;
-        return place;
-    }
-
-    if (cls == 'Player') {
-        const player = new moo.Player(row.id, row.title);
-        player.description = row.description;
-        player.loadExtended(extended);
-        return player;
-    }
-
-    console.error(`unable to create a Thing for row ${JSON.stringify(row)}`);
-};
 
 
 
@@ -58,7 +25,7 @@ const loadAllTheThings = async (db) => {
                 throw err;
             }
 
-            const thing = thingFactory(row);
+            const thing = moo.thingFactory(row);
             allThings.set(+thing.id, thing);
         });
 
@@ -103,6 +70,8 @@ const init = async () => {
     await loadAllTheThings(db);
     await linkHolders(db);
 
+    dbReady = true;
+
     console.log('[db] running initPostLoad on everything');
     for (const thing of allThings.values()) {
         thing.initPostLoad();
@@ -137,13 +106,15 @@ const forAllThings = (fn) => {
 
 
 const newThing = async (class_, title, description, state) => {
-    const res = await db.run(`INSERT INTO thing (class_, title, description) VALUES (?,?,?)`, class_, title, description);
+    const ownerId = state.player ? state.player.id : null;
+    console.log(`creating ${title} for owner id ${ownerId}`);
+    const res = await db.run(`INSERT INTO thing (ownerId, class_, title, description) VALUES (?,?,?,?)`, ownerId, class_, title, description);
     const thingId = res.lastID;
 
     // this feels silly
     const row = await db.get('SELECT * FROM thing WHERE id=?', thingId);
-    const thing = thingFactory(row);
-    allThings.set(+thing.id, thing);
+    const thing = moo.thingFactory(row);
+    allThings.set(thing.id, thing);
 
     console.log(`created new ${class_} "${title}" id ${thingId} for player ${state ? state.player.title : '<none>'}`);
     
@@ -162,6 +133,23 @@ const nixThing = async (id, state) => {
         throw new Error(`removed unexpected number of rows: ${res.changes}`);
     }
 };
+
+
+
+const saveThing = async (row) => {
+    try {
+        const res = await db.run('UPDATE thing SET ownerId=?, title=?, description=?, data=? WHERE id=?',
+            [row.ownerId, row.title, row.description, row.extended, row.id]);
+
+        if (res.changes !== 1) {
+            throw new Error(`removed unexpected number of rows: ${res.changes}`);
+        }
+    }
+    catch (err) {
+        console.error(err);
+        throw err;
+    }
+}
 
 
 
@@ -238,6 +226,7 @@ const removeHold = async (holderId, heldId) => {
 
 module.exports = {
     init,
+    dbReady,
 
     getById,
     findThingByTitle,
@@ -246,6 +235,8 @@ module.exports = {
 
     newThing,
     nixThing,
+
+    saveThing,
 
     authenticateUser,
     createUser,

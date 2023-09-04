@@ -4,10 +4,14 @@
 
 CREATE TABLE thing (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    ownerId       INTEGER DEFAULT NULL,
     title         TEXT NOT NULL,
     description   TEXT NOT NULL,
     class_        TEXT NOT NULL,
-    data          JSON
+    data          JSON,
+    
+    CONSTRAINT thing_fk_ownerId FOREIGN KEY (ownerId)
+        REFERENCES thing (id) ON UPDATE CASCADE ON DELETE SET DEFAULT
 );
 
 CREATE INDEX thing_ix_title ON thing (title);
@@ -17,10 +21,13 @@ CREATE TABLE hold (
     heldId INTEGER NOT NULL,
     
     CONSTRAINT holds_fk_holderId FOREIGN KEY (holderId)
-        REFERENCES thing (id) ON UPDATE CASCADE ON DELETE CASCADE,
+        REFERENCES thing (id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT holds_fk_heldId FOREIGN KEY (heldId)
-        REFERENCES thing (id) ON UPDATE CASCADE ON DELETE CASCADE
+        REFERENCES thing (id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
+
+CREATE INDEX hold_ix_heldId ON hold(heldId);
+CREATE UNIQUE INDEX hold_uniq ON hold(holderId, heldId);
 
 CREATE TABLE user (
     id          INTEGER PRIMARY KEY,
@@ -34,8 +41,8 @@ CREATE TABLE user (
 CREATE INDEX user_ix_username ON user (username);
 
 
-INSERT INTO thing (id, class_, title, description, data) VALUES
-    (1, 'Player', 'molen', 'A colony of sponges', json('{"locationId":3}'));
+INSERT INTO thing (id, ownerId, class_, title, description, data) VALUES
+    (1, 1, 'Player', 'molen', 'A colony of sponges', json('{"locationId":3}'));
 INSERT INTO user (id, username,pwdhash) VALUES (1, 'molen', '4b8202c19fd44f6ce3ef76621a403d669d62a2fb1f903c17163d6dc35757aa94');
 
 INSERT INTO thing (id, class_, title, description) VALUES
@@ -52,6 +59,7 @@ INSERT INTO hold (holderId, heldId) VALUES
 
 DROP INDEX user_ix_username;
 DROP TABLE users;
+DROP INDEX hold_uniq;
 DROP TABLE holds;
 DROP INDEX thing_ix_title;
 DROP TABLE things;

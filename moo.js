@@ -7,10 +7,11 @@ const listToStr = mootils.listToStr;
 
 
 class Thing {
-    constructor(id) {
-        this.id = id;
-        this.title = 'A Formless Idea';
-        this.description = 'A greyish lump of soft, warm matter. It desperately wants to become something.';
+    constructor(row, extended) {
+        this.id = +row.id;
+        this.ownerId = row.ownerId ? +row.ownerId : null;
+        this.title = row.title;
+        this.description = row.description;
         this.holds = [];
     }
 
@@ -21,6 +22,19 @@ class Thing {
     }
 
     initPostLoad() {
+    }
+
+    async save() {
+        const extended = this.toExtended();
+        const row = {
+            id: this.id,
+            ownerId: this.ownerId,
+            title: this.title,
+            description: this.description,
+            extended: JSON.stringify(extended),
+        };
+
+        await moodb.saveThing(row);
     }
 
     overview() {
@@ -46,36 +60,38 @@ class Thing {
 
 
 class Place extends Thing {
-    constructor(id) {
-        super(id);
+    constructor(row, extended) {
+        super(row, extended);
 
         this.exitIds = new Map();  // direction -> thingId
         this.exits = new Map();    // direction -> thing
+        
+        if (extended.exitIds) {
+            for (const [dir, id] of extended.exitIds) {
+                this.exitIds.set(dir, id);
+            }
+        }
     }
 
     toExtended() {
         return {
+            ...super.toExtended(),
             exitIds: [...this.exitIds.entries()],
         };
-    }
-    loadExtended(data) {
-        if (data.exitIds) {
-            for (const [dir, id] of data.exitIds) {
-                this.exitIds.set(dir, id);
-            }
-        }
     }
     
     initPostLoad() {
         this.exits = new Map();
         for (const [direction, destId] of this.exitIds.entries()) {
-            this.exits.set(direction) = moodb.getById(destId);
+            this.exits.set(direction, moodb.getById(destId));
         }
     }
 
-    addExit(direction, dest) {
+    async addExit(direction, dest) {
         this.exitIds.set(direction, dest.id);
         this.exits.set(direction, dest);
+
+        await this.save();
     }
 
     overview() {
@@ -89,26 +105,19 @@ class Place extends Thing {
 
 
 class Player extends Thing {
-    constructor(id, username) {
-        super(id);
+    constructor(row, extended) {
+        super(row, extended);
 
-        this.title = username;
-        this.description = 'A mysterious stranger';
-
-        this.locationId = -1;
+        this.locationId = extended.locationId ?? -1;
 
         this.state = null;
     }
 
     toExtended() {
         return {
+            ...super.toExtended(),
             locationId: this.locationId,
         };
-    }
-    loadExtended(data) {
-        if (data.locationId) {
-            this.locationId = data.locationId;
-        }
     }
 
     async travelTo(place) {
@@ -119,14 +128,48 @@ class Player extends Thing {
 
         this.locationId = place.id;
         await place.thingAdded(this);
+        await this.save();
     }
 };
+
+
+
+const thingTypes = {
+    'Thing' : Thing,
+    'Place' : Place,
+    'Player' : Player,
+};
+
+
+// deserialises a thing from the db
+const thingFactory = row => {
+    const cls = row.class_;
+
+    const extendedJson = row.data ?? "{}";
+    const extended = JSON.parse(extendedJson);
+
+    if (cls in thingTypes) {
+        const thing = new thingTypes[cls](row, extended);
+
+        if (moodb.dbReady) {
+            thing.initPostLoad();
+        }
+
+        return thing;
+    }
+
+    console.error(`unable to create a Thing for row ${JSON.stringify(row)}`);
+};
+
+
 
 
 module.exports = {
     Thing,
     Place,
     Player,
+
+    thingFactory,
 };
 
 const moodb = require('./moodb')

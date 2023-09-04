@@ -125,11 +125,11 @@ const buildingCommands = {
         const there = await moodb.newThing('Place', cmd.destination, `The mist here is so thick you can't see anything`, state);
 
         for (const dir of directions) {
-            here.addExit(dir, there);
+            await here.addExit(dir, there);
 
             if (!cmd.oneway) {
                 const rtnDir = getReturnDirection(dir);
-                there.addExit(rtnDir, here);
+                await there.addExit(rtnDir, here);
             }
         }
     },
