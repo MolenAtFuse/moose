@@ -23,8 +23,16 @@ const listToStr = (list, sing='', plur='') => {
 };
 
 
+const allTheUnderline = '====================================================================================================';
+const underline = str => {
+    return (str + NL + allTheUnderline.substring(0, str.length) + NL);
+};
+
+
 module.exports = {
     NL, NL2,
     
     listToStr,
+
+    underline,
 };

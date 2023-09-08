@@ -16,6 +16,9 @@ const WelcomeMsg =  '' +
 '-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n\r\n';
 
 
+const BACKSPACE = 8;
+
+
 const runServer = () => {
     const server = net.createServer((c) => {
         const connId = `${c.remoteAddress}:${c.remotePort}`;
@@ -30,17 +33,27 @@ const runServer = () => {
         c.on('end', () => {
             console.log(`client disconnected: ${connId}`);
         });
-        c.on('data', async d=>{
+        c.on('data', async data=>{
             // just ignore any telnet commands and hope that's ok
-            if (d[0] == 255) {
-                console.log(`${connId}: IAC: ${[...d].join(',')}`);
+            if (data[0] == 255) {
+                console.log(`${connId}: IAC: ${[...data].join(',')}`);
                 return;
             }
             
-            line += d;
+            // implement backspace
+            for (const c of data) {
+                if (c == BACKSPACE) {
+                    if (line.length > 0) {
+                        line = line.substring(0, line.length-1);
+                    }
+                }
+                else {
+                    line += String.fromCharCode([c]);
+                }
+            }
 
             if (state.hideInput) {
-                const backspace = new Uint8Array([8]);
+                const backspace = new Uint8Array([BACKSPACE]);
                 for (let i=0; i<d.length; ++i) {
                     c.write(backspace);
                 }

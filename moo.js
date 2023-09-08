@@ -4,6 +4,7 @@ const mootils = require("./mootils");
 const NL = mootils.NL;
 const NL2 = mootils.NL2;
 const listToStr = mootils.listToStr;
+const underline = mootils.underline;
 
 
 class Thing {
@@ -17,8 +18,6 @@ class Thing {
 
     toExtended() {
         return {};
-    }
-    loadExtended(data) {
     }
 
     initPostLoad() {
@@ -46,6 +45,10 @@ class Thing {
     }
 
     async thingAdded(thing) {
+        if (this.holds.indexOf(thing) >= 0) {
+            return;
+        }
+
         this.holds.push(thing);
         await moodb.addHold(this.id, thing.id);
     }
@@ -53,8 +56,8 @@ class Thing {
         const ix = this.holds.indexOf(thing);
         if (ix >= 0) {
             this.holds = this.holds.splice(ix, 1);
+            await moodb.removeHold(this.id, thing.id);
         }
-        await moodb.removeHold(this.id, thing.id);
     }
 }
 
@@ -99,7 +102,25 @@ class Place extends Thing {
     }
 
     describe() {
-        return `${this.title}${NL2}${this.description}${NL2}${listToStr(this.holds, 'is', 'are')} here.`;
+        return `${underline(this.title)}${NL}${this.description}${NL2}${this.getExitText()}${NL2}${listToStr(this.holds, 'is', 'are')} here.`;
+    }
+
+    getExitText() {
+        const exitNames = [];
+        for (const exitName of this.exits.keys()) {
+            // heh...
+            if (exitName.length > 1) {
+                exitNames.push(exitName);
+            }
+        }
+        if (exitNames.length == 0) {
+            return `There doesn't appear to be a way out of here.`;
+        }
+        if (exitNames.length == 1) {
+            return `There is an exit ${exitNames[0]}.`;
+        }
+
+        return `Exits are via ${listToStr(exitNames)}.`;
     }
 }
 

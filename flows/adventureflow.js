@@ -177,7 +177,7 @@ class AdventureFlow {
     constructor (conn, state) {
         state.hideInput = false;
         conn.write(` adventure time${NL}`)
-        conn.write(`****************${NL2}`)
+        conn.write(`****************${NL}`)
 
         this.arrivedAtLocation(moodb.getById(state.player.locationId), state);
         state.conn.write('> ');
@@ -185,7 +185,7 @@ class AdventureFlow {
 
     arrivedAtLocation(location, state) {
         state.currLocation = location;
-        state.conn.write(location.describe() + NL2);
+        state.conn.write(NL2 + location.describe() + NL2);
     }
 
     async processInput(input, conn, state) {
