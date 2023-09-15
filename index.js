@@ -6,14 +6,14 @@ const LoginFlow = require('./flows/loginflow').LoginFlow;
 const PORT = 8889;
 
 const WelcomeMsg =  '' +
-'-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n' +
+'-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n' +
 '\r\n' +
-'          welcome to MOOse\r\n' +
-'       please tip your servers\r\n' +
+'             welcome to MOOse\r\n' +
+'          please tip your servers\r\n' +
 '\r\n' +
-'local time now is ... past your bedtime\r\n' +
+'   local time now is ... past your bedtime\r\n' +
 '\r\n' +
-'-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n\r\n';
+'-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n\r\n';
 
 
 const BACKSPACE = 8;
@@ -54,11 +54,11 @@ const runServer = () => {
 
             if (state.hideInput) {
                 const backspace = new Uint8Array([BACKSPACE]);
-                for (let i=0; i<d.length; ++i) {
+                for (let i=0; i<data.length; ++i) {
                     c.write(backspace);
                 }
-                for (let i=0; i<d.length; ++i) {
-                    if (d[i] != 10 && d[i] != 13) {     // ignore CR & LF
+                for (let i=0; i<data.length; ++i) {
+                    if (data[i] != 10 && data[i] != 13) {     // ignore CR & LF
                         c.write('*');
                     }
                 }
@@ -67,6 +67,9 @@ const runServer = () => {
             // TODO: handle d containing multiple lines
             if (line.endsWith('\n')) {
                 line = line.trim();
+                
+                // ignore escape sequences
+                line = line.replace(/[\x1b][[]./g, '');
                 
                 //console.log(`${connId}: '${line}'`);
                 if (flow) {

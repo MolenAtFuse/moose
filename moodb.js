@@ -106,7 +106,7 @@ const forAllThings = (fn) => {
 
 
 const newThing = async (class_, title, description, state) => {
-    const ownerId = state.player ? state.player.id : null;
+    const ownerId = (state && state.player) ? state.player.id : null;
     console.log(`creating ${title} for owner id ${ownerId}`);
     const res = await db.run(`INSERT INTO thing (ownerId, class_, title, description) VALUES (?,?,?,?)`, ownerId, class_, title, description);
     const thingId = res.lastID;

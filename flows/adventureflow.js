@@ -44,10 +44,17 @@ const parseCommand = (tokens, pattern) => {
     const parsed = {};
 
     while (patToks.length > 0) {
-        const ptok = patToks.shift();
+        let ptok = patToks.shift();
 
         if (tokens.length == 0 && !ptok.startsWith('?')) {
             throw new Error('not enough words');
+        }
+
+        // if this token has an ellipsis, gobble the rest of the tokens into a single string
+        if (ptok.endsWith('...')) {
+            ptok = ptok.replace(/[.]*$/, '');
+            const rest = tokens.join(' ');
+            tokens = [rest];
         }
 
         const intok = tokens.shift();
@@ -77,62 +84,61 @@ const parseCommand = (tokens, pattern) => {
 };
 
 
-const returnDirections = new Map([
-    ['e', 'w'], ['east', 'west'],
-    ['w', 'e'], ['west', 'east'],
-    ['s', 'n'], ['south', 'north'],
-    ['n', 's'], ['north', 'south'],
-    ['u', 'd'], ['up', 'down'],
-    ['d', 'u'], ['down', 'up'],
-]);
-const getReturnDirection = dir => {
-    if (returnDirections.has(dir)) {
-        return returnDirections.get(dir);
-    }
-    return undefined;
-};
-
-
 const infoCommands = {
     'look': async (tokens, state) => {
         eatOptional('at', tokens);
 
         state.conn.write(NL + state.currLocation.describe() + NL2);
     },
+
+    'help': async (tokens, state) => {
+        state.conn.write(`available commands:${NL}`);
+        for (const cmdName of Object.keys(allCommands)) {
+            state.conn.write(`   ${cmdName}${NL}`);
+        }
+    },
 };
 
 const buildingCommands = {
 
-    // @dig e,east [oneway] to "Empty Cupboard"
+    // @dig e,east[|w,west,out] to "Empty Cupboard"
     '@dig': async (tokens, state) => {
-        const cmd = parseCommand(tokens, '$directions ?oneway to $destination');
-        const directions = cmd.directions.split(',');
+        const cmd = parseCommand(tokens, '$directions to $destination...');
+                
+        const exitsAndReturns = cmd.directions.split('|', 2);
+        const exits = exitsAndReturns[0].split(',');
+        const returns = (exitsAndReturns.length > 1) ? exitsAndReturns[1].split(',') : [];
 
         // check for no dupe exits
         const here = state.currLocation;
-        for (const dir of directions) {
+        for (const dir of exits) {
             if (here.exits.has(dir)) {
                 throw new Error(`this room already has an exit from '${dir}'`);
             }
-
-            if (!cmd.oneway && typeof getReturnDirection(dir) === 'undefined') {
-                throw new Error(`i don't know the way back from "${dir}" (hint: add "oneway" after directions if you don't want a return path)`);
-            }
         }
 
-        // TODO: check for dupe destination place name
+        // TODO: check for existing destination place ID and just connect to that
 
         const there = await moodb.newThing('Place', cmd.destination, `The mist here is so thick you can't see anything`, state);
 
-        for (const dir of directions) {
+        for (const dir of exits) {
             await here.addExit(dir, there);
-
-            if (!cmd.oneway) {
-                const rtnDir = getReturnDirection(dir);
-                await there.addExit(rtnDir, here);
-            }
+        }
+        for (const dir of returns) {
+            await there.addExit(dir, here);
         }
     },
+
+    // @describe here as "A lovely place to stop awhile."
+    '@describe': async (tokens, state) => {
+        const cmd = parseCommand(tokens, '$thing as $description...');
+
+        if (cmd.thing.toLowerCase() !== 'here') {
+            throw new Error(`i don't know what a ${cmd.thing} is`);
+        }
+
+        await state.currLocation.setDescription(cmd.description);
+    }
 };
 
 

@@ -44,7 +44,7 @@ class LoginFlow {
                 this.phase = 'createuser';
             }
             else if (input == 'x') {
-                const player = await moodb.authenticateUser('molen', mooser.getPasswordHash('molen', 'hi'));
+                const player = await moodb.authenticateUser('molen', '4b8202c19fd44f6ce3ef76621a403d669d62a2fb1f903c17163d6dc35757aa94');
                 return await this.onUserLoggedIn(player, state);
             }
             else {
@@ -101,7 +101,7 @@ class LoginFlow {
             }
         }
         else if (this.phase == 'createpass') {
-            if (input.length > 3) {
+            if (input.length >= 3) {
                 this.pwdHash = mooser.getPasswordHash(this.username, input);
                 conn.write(`looks good - please enter it again for luck... > `);
                 this.phase = 'validatepass';

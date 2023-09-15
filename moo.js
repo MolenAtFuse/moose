@@ -44,6 +44,13 @@ class Thing {
         return `${this.title}${NL2}${this.description}. It contains ${listToStr(this.holds)}.`;
     }
 
+
+    async setDescription(description) {
+        this.description = description;
+
+        await this.save();
+    }
+
     async thingAdded(thing) {
         if (this.holds.indexOf(thing) >= 0) {
             return;
