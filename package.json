@@ -9,8 +9,12 @@
   "author": "alex mole / fuse games",
   "license": "ISC",
   "dependencies": {
+    "bufferutil": "^4.0.7",
+    "express": "^4.18.2",
     "nodemon": "^3.0.1",
     "sqlite": "^5.0.1",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.6",
+    "utf-8-validate": "^6.0.3",
+    "ws": "^8.14.2"
   }
 }

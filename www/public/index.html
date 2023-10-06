@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html data-bs-theme="dark">
+<head>
+    <title>MOOse</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="/styles.css">
+
+    <style>
+    </style>
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h1>MOOse</h1>
+
+        <p>get moosing</p>
+        
+        <button id="connectBtn" type="button">connect to ws</button>
+        <button id="sendBtn" type="button">send ws message</button>
+    </div>
+
+
+
+    <!--   S C R I P T S   -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.3/build/global/luxon.min.js"></script>
+    <script>
+        const connectBtn = document.getElementById('connectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+
+        let ws;
+        connectBtn.onclick = () => {
+            if (ws) {
+                ws.onerror = ws.onopen = ws.onclose = null;
+                ws.close();
+            }
+
+            ws = new WebSocket(`ws://${location.host}`);
+            ws.onopen = () => { console.log('onopen'); };
+            ws.onclose = () => { console.log('onclose'); };
+            ws.onerror = () => { console.error('ws error'); };
+        };
+
+        sendBtn.onclick = () => {
+            if (!ws) {
+                console.log('no websocket');
+                return;
+            }
+
+            ws.send('yo, bobo 🥳');
+        };
+    </script>
+</body>
+
+</html>

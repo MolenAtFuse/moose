@@ -1,9 +1,13 @@
+const express = require('express');
+const http = require('http');
 const net = require('node:net');
+const ws = require('ws');
 
 const moodb = require('./moodb');
 const LoginFlow = require('./flows/loginflow').LoginFlow;
 
-const PORT = 8889;
+const WEBPORT = 8001;
+const TELNETPORT = 8889;
 
 const WelcomeMsg =  '' +
 '-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n' +
@@ -16,10 +20,46 @@ const WelcomeMsg =  '' +
 '-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n\r\n';
 
 
-const BACKSPACE = 8;
+const attachWsServer = (server) => {
+    const wss = new ws.WebSocketServer({ clientTracking: false, noServer: true });
+
+    server.on('upgrade', (req, socket, head) => {
+        wss.handleUpgrade(req, socket, head, (ws) => {
+            wss.emit('connection', ws, req);
+        });
+    });
+
+    wss.on('connection', (ws, req) => {
+        ws.on('error', console.error);
+          
+        ws.on('message', function message(data) {
+          console.log('WS received: %s', data);
+        });
+    });
+
+    wss.on('error', err=> {
+        throw err;
+    });
+
+    console.log(`websocket server ready`);
+};
 
 
-const runServer = () => {
+
+const runWebServer = (port) => {
+    const app = express();
+    app.use(express.static('www/public'));
+    console.log(`webserver listening on port ${port}`);
+
+    const server = http.createServer(app);
+    attachWsServer(server);
+    server.listen(port);
+};
+
+
+const runTelnetServer = (port) => {
+    const BACKSPACE = 8;
+
     const server = net.createServer((c) => {
         const connId = `${c.remoteAddress}:${c.remotePort}`;
         console.log(`client connected: ${connId}`);
@@ -89,8 +129,8 @@ const runServer = () => {
         throw err;
     });
 
-    server.listen(PORT, () => {
-        console.log(`server listening on port ${PORT}`);
+    server.listen(port, () => {
+        console.log(`server listening on port ${port}`);
     });
 };
 
@@ -98,7 +138,8 @@ const runServer = () => {
 const main = async () => {
     await moodb.init();
 
-    runServer();
+    runWebServer(WEBPORT);
+    runTelnetServer(TELNETPORT);
 };
 
 
