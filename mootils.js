@@ -1,7 +1,4 @@
 
-const NL = '\r\n';
-const NL2 = NL + NL;
-
 
 const listToStr = (list, sing='', plur='') => {
     if (list.length > 0 && typeof list[0] !== 'string') {
@@ -25,13 +22,11 @@ const listToStr = (list, sing='', plur='') => {
 
 const allTheUnderline = '====================================================================================================';
 const underline = str => {
-    return (str + NL + allTheUnderline.substring(0, str.length) + NL);
+    return (str + '\n' + allTheUnderline.substring(0, str.length) + '\n');
 };
 
 
 module.exports = {
-    NL, NL2,
-    
     listToStr,
 
     underline,

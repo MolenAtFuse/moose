@@ -4,13 +4,10 @@ const mootils = require('../mootils');
 
 const AdventureFlow = require('./adventureflow').AdventureFlow;
 
-const NL = mootils.NL;
-const NL2 = mootils.NL2;
-
 
 class LoginFlow {
     constructor(conn, state) {
-        conn.write('would you like to *login* to an existing account, or *create* a new one?' + NL);
+        conn.write('would you like to *login* to an existing account, or *create* a new one?\n');
         conn.write('> ');
 
         this.phase = 'loginorcreate'
@@ -27,7 +24,7 @@ class LoginFlow {
         state.player = player;
         player.state = state;
 
-        state.conn.write(`${NL2}welcome back ${player.title}!${NL2}${NL2}`);
+        state.conn.write(`\n\nwelcome back ${player.title}!\n\n\n\n`);
 
         return new AdventureFlow(state.conn, state);
     }
@@ -36,11 +33,11 @@ class LoginFlow {
         input = input.trim();
         if (this.phase == 'loginorcreate') {
             if (input == 'login') {
-                conn.write('lovely! who\'s logging in? > ');
+                conn.write('lovely! who\'s logging in?\n> ');
                 this.phase = 'loginuser';
             }
             else if (input == 'create') {
-                conn.write('welcome! what should we call you? > ');
+                conn.write('welcome! what should we call you?\n> ');
                 this.phase = 'createuser';
             }
             else if (input == 'x') {
@@ -48,14 +45,14 @@ class LoginFlow {
                 return await this.onUserLoggedIn(player, state);
             }
             else {
-                conn.write(`i'm afraid i don't know how to ${input}${NL}`);
+                conn.write(`i'm afraid i don't know how to ${input}\n`);
                 return new LoginFlow(conn, state);
             }
         }
         else if (this.phase == 'loginuser') {
             if (input.length > 0) {
                 this.username = input;
-                conn.write(`okedoke! what's your password? > `);
+                conn.write(`okedoke! what's your password?\n> `);
                 this.phase = 'loginpass';
                 state.hideInput = true;
             }
@@ -73,7 +70,7 @@ class LoginFlow {
                     })
                     .catch(err => {
                         console.log(err.message);
-                        conn.write(`oh no, that login didn't work. try again!${NL}${NL}`);
+                        conn.write(`oh no, that login didn't work. try again!\n\n`);
                         return new LoginFlow(conn, state);
                     });
             }
@@ -88,27 +85,27 @@ class LoginFlow {
                 if (!taken) {
                     this.username = input;
 
-                    conn.write(`okedoke! what password would you like? > `);
+                    conn.write(`okedoke! what password would you like?\n> `);
                     this.phase = 'createpass';
                     state.hideInput = true;
                 }
                 else {
-                    conn.write(`we already have someone here by that name. try again! > `);
+                    conn.write(`we already have someone here by that name. try again!\n> `);
                 }
             }
             else {
-                conn.write(`oops, that's a bit short. try something longer! > `);
+                conn.write(`oops, that's a bit short. try something longer!\n> `);
             }
         }
         else if (this.phase == 'createpass') {
             if (input.length >= 3) {
                 this.pwdHash = mooser.getPasswordHash(this.username, input);
-                conn.write(`looks good - please enter it again for luck... > `);
+                conn.write(`looks good - please enter it again for luck...\n> `);
                 this.phase = 'validatepass';
                 state.hideInput = true;
             }
             else {
-                conn.write(`oops, that's a bit short. try another! > `);
+                conn.write(`oops, that's a bit short. try another!\n> `);
             }
         }
         else if (this.phase == 'validatepass') {
@@ -125,12 +122,12 @@ class LoginFlow {
     
                 state.player = player;
     
-                conn.write(`welcome to MOOse,  ${this.username}!${NL}${NL}`);
+                conn.write(`welcome to MOOse,  ${this.username}!\n\n`);
     
                 return new AdventureFlow(conn, state);
             }
             else {
-                conn.write(`hm, seems like they didn't match. once more from the top! > `);
+                conn.write(`hm, seems like they didn't match. once more from the top!\n> `);
                 this.phase = 'createpass';
             }
         }

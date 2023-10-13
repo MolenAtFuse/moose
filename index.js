@@ -4,20 +4,54 @@ const net = require('node:net');
 const ws = require('ws');
 
 const moodb = require('./moodb');
+const { clearInterval } = require('timers');
 const LoginFlow = require('./flows/loginflow').LoginFlow;
 
 const WEBPORT = 8001;
 const TELNETPORT = 8889;
 
-const WelcomeMsg =  '' +
-'-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n' +
-'\r\n' +
-'             welcome to MOOse\r\n' +
-'          please tip your servers\r\n' +
-'\r\n' +
-'   local time now is ... past your bedtime\r\n' +
-'\r\n' +
-'-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\r\n\r\n';
+const WelcomeMsg =  `
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
+
+              welcome to MOOse
+          please tip your servers
+
+   local time now is ... past your bedtime
+
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-\n\n`;
+
+
+
+class WebSocketConnection {
+    constructor(ws) {
+        this.ws = ws;
+    }
+
+    sendText(txt) {
+        this.ws.send(txt);
+    }
+
+    // legacy!
+    write(txt) {
+        this.sendText(txt);
+    }
+}
+
+class TelnetConnection {
+    constructor(c) {
+        this.c = c;
+    }
+
+    sendText(txt) {
+        this.c.write(txt.replaceAll('\n', '\r\n'));
+    }
+
+    // legacy!
+    write(txt) {
+        this.sendText(txt);
+    }
+};
+
 
 
 const attachWsServer = (server) => {
@@ -30,11 +64,48 @@ const attachWsServer = (server) => {
     });
 
     wss.on('connection', (ws, req) => {
-        ws.on('error', console.error);
+        const connId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
+        console.log(`client connected: ${connId}`);
+        
+        const conn = new WebSocketConnection(ws);
+        conn.write(WelcomeMsg);
+        
+        const state = { conn, connId };
+        let flow = new LoginFlow(conn, state);
           
-        ws.on('message', function message(data) {
-          console.log('WS received: %s', data);
+        ws.on('message', async (msg) => {
+            const line = msg.toString().trim();
+
+            conn.sendText((state.hideInput ? '********' : line) + `\n`);
+            
+            console.log(`${connId}: '${line}'`);
+            if (flow) {
+                const newFlow = await flow.processInput(line, conn, state);
+                if (newFlow) {
+                    console.log(`${connId}: switching flow to ${newFlow.constructor.name}`);
+                    flow = newFlow;
+                }
+            }
         });
+
+        // detect dropped socks
+        let isAlive = true;
+        ws.on('pong', () => { isAlive = true; });
+        const watchdog = setInterval(() => {
+            if (!isAlive) {
+                console.log(`watchdog detected ${connId} dropped`);
+                return ws.terminate();
+            }
+            isAlive = false;
+            ws.ping();
+        }, 10*1000);
+
+        ws.on('close', () => {
+            console.log(`client disconnected: ${connId}`);
+            clearInterval(watchdog);
+        });
+
+        ws.on('error', console.error);
     });
 
     wss.on('error', err=> {
@@ -63,10 +134,12 @@ const runTelnetServer = (port) => {
     const server = net.createServer((c) => {
         const connId = `${c.remoteAddress}:${c.remotePort}`;
         console.log(`client connected: ${connId}`);
-        c.write(WelcomeMsg);
+        const conn = new TelnetConnection(c);
 
-        const state = { conn:c, connId };
-        let flow = new LoginFlow(c, state);
+        conn.write(WelcomeMsg);
+
+        const state = { conn, connId };
+        let flow = new LoginFlow(conn, state);
 
         let line = '';
 
@@ -113,7 +186,7 @@ const runTelnetServer = (port) => {
                 
                 //console.log(`${connId}: '${line}'`);
                 if (flow) {
-                    const newFlow = await flow.processInput(line, c, state);
+                    const newFlow = await flow.processInput(line, conn, state);
                     if (newFlow) {
                         console.log(`${connId}: switching flow to ${newFlow.constructor.name}`);
                         flow = newFlow;

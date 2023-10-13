@@ -8,6 +8,19 @@
     <link rel="stylesheet" href="/styles.css">
 
     <style>
+        .terminal {
+            background-color: #181818;
+            font-family: 'Consolas', monospace;
+            color: #228f22;
+            font-size: 12px;
+        }
+        #recvTxt {
+            width: 100%;
+            min-height: 60vh;
+        }
+        #sendLineTxt {
+            width: 100%;
+        }
     </style>
 </head>
 
@@ -15,23 +28,23 @@
     <div class="container mt-5">
         <h1>MOOse</h1>
 
-        <p>get moosing</p>
-        
-        <button id="connectBtn" type="button">connect to ws</button>
-        <button id="sendBtn" type="button">send ws message</button>
+        <p>how very amoozing</p>
+
+        <div>
+            <textarea id="recvTxt" readonly class="terminal"></textarea>
+            <input id="sendLineTxt" type="text" placeholder=" >" class="terminal" />
+        </div>
     </div>
 
 
 
     <!--   S C R I P T S   -->
-    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.3/build/global/luxon.min.js"></script>
     <script>
-        const connectBtn = document.getElementById('connectBtn');
-        const sendBtn = document.getElementById('sendBtn');
+        const recvTxt = document.getElementById('recvTxt');
+        const sendLineTxt = document.getElementById('sendLineTxt');
 
         let ws;
-        connectBtn.onclick = () => {
+        const connectToWebsock = () => {
             if (ws) {
                 ws.onerror = ws.onopen = ws.onclose = null;
                 ws.close();
@@ -41,16 +54,30 @@
             ws.onopen = () => { console.log('onopen'); };
             ws.onclose = () => { console.log('onclose'); };
             ws.onerror = () => { console.error('ws error'); };
+            ws.onmessage = (event) => {
+                recvTxt.value += event.data;
+                recvTxt.scrollTop = recvTxt.scrollHeight;
+            };
         };
-
-        sendBtn.onclick = () => {
+        const sendTextToWebsock = txt => {
             if (!ws) {
-                console.log('no websocket');
-                return;
+                throw 'not connected';
             }
-
-            ws.send('yo, bobo 🥳');
+            
+            ws.send(txt);
         };
+
+        sendLineTxt.onkeypress = (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                
+                sendTextToWebsock(sendLineTxt.value);
+                sendLineTxt.value = '';
+            }
+        };
+        sendLineTxt.focus();
+
+        connectToWebsock();
     </script>
 </body>
 

@@ -1,8 +1,6 @@
 const mootils = require("./mootils");
 // NB. moodb loaded after exports defined to fix circular deps
 
-const NL = mootils.NL;
-const NL2 = mootils.NL2;
 const listToStr = mootils.listToStr;
 const underline = mootils.underline;
 
@@ -41,7 +39,7 @@ class Thing {
     }
 
     describe() {
-        return `${this.title}${NL2}${this.description}. It contains ${listToStr(this.holds)}.`;
+        return `${this.title}'\n\n'${this.description}. It contains ${listToStr(this.holds)}.`;
     }
 
 
@@ -109,7 +107,7 @@ class Place extends Thing {
     }
 
     describe() {
-        return `${underline(this.title)}${NL}${this.description}${NL2}${this.getExitText()}${NL2}${listToStr(this.holds, 'is', 'are')} here.`;
+        return `${underline(this.title)}\n${this.description}\n\n${this.getExitText()}\n\n${listToStr(this.holds, 'is', 'are')} here.`;
     }
 
     getExitText() {

@@ -2,10 +2,6 @@ const moodb = require('../moodb');
 const mootils = require('../mootils');
 
 
-const NL = mootils.NL;
-const NL2 = mootils.NL2;
-
-
 // thanks stackoverflow: https://stackoverflow.com/a/18647776
 const tokenise = input => {
     const tokenRe = /[^\s"]+|"([^"]*)"/g;
@@ -88,13 +84,13 @@ const infoCommands = {
     'look': async (tokens, state) => {
         eatOptional('at', tokens);
 
-        state.conn.write(NL + state.currLocation.describe() + NL2);
+        state.conn.write('\n' + state.currLocation.describe() + '\n\n');
     },
 
     'help': async (tokens, state) => {
-        state.conn.write(`available commands:${NL}`);
+        state.conn.write(`available commands:\n`);
         for (const cmdName of Object.keys(allCommands)) {
-            state.conn.write(`   ${cmdName}${NL}`);
+            state.conn.write(`   ${cmdName}\n`);
         }
     },
 };
@@ -146,13 +142,13 @@ const adminCommands = {
 
     '@@ls': async (tokens, state) => {
         moodb.forAllThings(thing => {
-            state.conn.write(`${thing.id}\t${thing.constructor.name}\t${thing.title}${NL}`);
+            state.conn.write(`${thing.id}\t${thing.constructor.name}\t${thing.title}\n`);
         });
     },
 
     '@@users': async (tokens, state) => {
         await moodb.forAllUsers((id, username) => {
-            state.conn.write(`${id}\t${username}${NL}`);
+            state.conn.write(`${id}\t${username}\n`);
         });
     },
 
@@ -182,8 +178,8 @@ const allCommands = {
 class AdventureFlow {
     constructor (conn, state) {
         state.hideInput = false;
-        conn.write(` adventure time${NL}`)
-        conn.write(`****************${NL}`)
+        conn.write(` adventure time\n`)
+        conn.write(`****************\n`)
 
         this.arrivedAtLocation(moodb.getById(state.player.locationId), state);
         state.conn.write('> ');
@@ -191,7 +187,7 @@ class AdventureFlow {
 
     arrivedAtLocation(location, state) {
         state.currLocation = location;
-        state.conn.write(NL2 + location.describe() + NL2);
+        state.conn.write('\n\n' + location.describe() + '\n\n');
     }
 
     async processInput(input, conn, state) {
@@ -206,7 +202,7 @@ class AdventureFlow {
                 }
                 catch (err) {
                     console.log(err);
-                    conn.write(`i didn't quite understand that ("${err.message}")${NL}`);
+                    conn.write(`i didn't quite understand that ("${err.message}")\n`);
                 }
             }
             else if (state.currLocation.exits.has(command)) {
@@ -216,7 +212,7 @@ class AdventureFlow {
                 this.arrivedAtLocation(newPlace, state);
             }
             else {
-                conn.write(`i'm afraid i don't know how to ${input}${NL}`);
+                conn.write(`i'm afraid i don't know how to ${input}\n`);
             }
         }
 
