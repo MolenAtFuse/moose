@@ -107,7 +107,12 @@ class Place extends Thing {
     }
 
     describe() {
-        return `${underline(this.title)}\n${this.description}\n\n${this.getExitText()}\n\n${listToStr(this.holds, 'is', 'are')} here.`;
+        let desc = this.description.trim();
+        if (!desc.endsWith('.')) {
+            desc += '.';
+        }
+
+        return `${underline(this.title)}${desc} ${this.getExitText()}\n${listToStr(this.holds, 'is', 'are')} here.`;
     }
 
     getExitText() {

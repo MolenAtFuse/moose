@@ -1,5 +1,5 @@
 const moodb = require('../moodb');
-const mootils = require('../mootils');
+const moo = require('../moo');
 
 
 // thanks stackoverflow: https://stackoverflow.com/a/18647776
@@ -80,6 +80,28 @@ const parseCommand = (tokens, pattern) => {
 };
 
 
+const arrivedAtLocation = (location, state) => {
+    state.currLocation = location;
+    state.conn.write('\n' + location.describe() + '\n\n');
+};
+
+const moveToPlace = async (place, state) => {
+    console.log(`${state.username} moving to ${place.title}, id ${place.id}`);
+    await state.player.travelTo(place);
+    arrivedAtLocation(place, state);
+};
+
+const moveInDirection = async (dir, state) => {
+    if (state.currLocation.exits.has(dir)) {
+        const newPlace = state.currLocation.exits.get(dir);
+        await moveToPlace(newPlace, state);
+    }
+    else {
+        throw new Error(`there isn't an exit '${dir}`);
+    }
+};
+
+
 const infoCommands = {
     'look': async (tokens, state) => {
         eatOptional('at', tokens);
@@ -92,6 +114,20 @@ const infoCommands = {
         for (const cmdName of Object.keys(allCommands)) {
             state.conn.write(`   ${cmdName}\n`);
         }
+    },
+
+    
+    'go': async (tokens, state) => {
+        await moveInDirection(tokens[0], state);
+    },
+    'move': async (tokens, state) => {
+        await moveInDirection(tokens[0], state);
+    },
+
+
+    'shout': async (tokens, state) => {
+        const message = tokens.join(' ');
+        throw new Error(`molen hasn't implemented this yet`);
     },
 };
 
@@ -134,7 +170,28 @@ const buildingCommands = {
         }
 
         await state.currLocation.setDescription(cmd.description);
-    }
+    },
+
+    // @teleport to id
+    '@teleport': async (tokens, state) => {
+        const cmd = parseCommand(tokens, 'to $dest...');
+
+        const destId = parseInt(cmd.dest);
+        if (!isNaN(destId)) {
+            const newPlace = moodb.getById(destId);
+            if (!newPlace) {
+                throw new Error(`we don't seem to have anywhere with that id`)
+            }
+            if (!(newPlace instanceof moo.Place)) {
+                throw new Error(`${newPlace.title} isn't a place`);
+            }
+
+            await moveToPlace(newPlace, state);
+        }
+        else {
+
+        }
+    },
 };
 
 
@@ -153,6 +210,9 @@ const adminCommands = {
     },
 
     '@@nix': async (tokens, state) => {
+        if (state.player.id !== 1) {
+            throw new Error(`you don't have permissions to nix things!`);
+        }
         const cmd = parseCommand(tokens, '$id $title');
         const thing = moodb.getById(cmd.id);
         if (typeof thing === 'undefined') {
@@ -181,18 +241,13 @@ class AdventureFlow {
         conn.write(` adventure time\n`)
         conn.write(`****************\n`)
 
-        this.arrivedAtLocation(moodb.getById(state.player.locationId), state);
+        arrivedAtLocation(moodb.getById(state.player.locationId), state);
         state.conn.write('> ');
-    }
-
-    arrivedAtLocation(location, state) {
-        state.currLocation = location;
-        state.conn.write('\n\n' + location.describe() + '\n\n');
     }
 
     async processInput(input, conn, state) {
         const tokens = tokenise(input.trim());
-        console.log(tokens);
+        //console.log(tokens);
 
         if (tokens.length > 0) {
             const command = tokens.shift();
@@ -206,10 +261,7 @@ class AdventureFlow {
                 }
             }
             else if (state.currLocation.exits.has(command)) {
-                const newPlace = state.currLocation.exits.get(command);
-                console.log(`moving to ${newPlace.title}, id ${newPlace.id}`);
-                await state.player.travelTo(newPlace);
-                this.arrivedAtLocation(newPlace, state);
+                await moveInDirection(command, state);
             }
             else {
                 conn.write(`i'm afraid i don't know how to ${input}\n`);

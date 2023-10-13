@@ -78,11 +78,11 @@ const attachWsServer = (server) => {
 
             conn.sendText((state.hideInput ? '********' : line) + `\n`);
             
-            console.log(`${connId}: '${line}'`);
+            console.log(`${connId}/${state.username}: '${line}'`);
             if (flow) {
                 const newFlow = await flow.processInput(line, conn, state);
                 if (newFlow) {
-                    console.log(`${connId}: switching flow to ${newFlow.constructor.name}`);
+                    console.log(`${connId}/${state.username}: switching flow to ${newFlow.constructor.name}`);
                     flow = newFlow;
                 }
             }
@@ -93,15 +93,15 @@ const attachWsServer = (server) => {
         ws.on('pong', () => { isAlive = true; });
         const watchdog = setInterval(() => {
             if (!isAlive) {
-                console.log(`watchdog detected ${connId} dropped`);
+                console.log(`watchdog detected ${connId}/${state.username} dropped`);
                 return ws.terminate();
             }
             isAlive = false;
             ws.ping();
-        }, 10*1000);
+        }, 30*1000);
 
         ws.on('close', () => {
-            console.log(`client disconnected: ${connId}`);
+            console.log(`client disconnected: ${connId} (${state.username})`);
             clearInterval(watchdog);
         });
 
@@ -144,7 +144,7 @@ const runTelnetServer = (port) => {
         let line = '';
 
         c.on('end', () => {
-            console.log(`client disconnected: ${connId}`);
+            console.log(`client disconnected: ${connId} (${state.username})`);
         });
         c.on('data', async data=>{
             // just ignore any telnet commands and hope that's ok

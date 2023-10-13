@@ -22,9 +22,10 @@ class LoginFlow {
         }
 
         state.player = player;
+        state.username = player.title;
         player.state = state;
 
-        state.conn.write(`\n\nwelcome back ${player.title}!\n\n\n\n`);
+        state.conn.write(`\nwelcome back, ${player.title}!\n\n`);
 
         return new AdventureFlow(state.conn, state);
     }
@@ -41,7 +42,8 @@ class LoginFlow {
                 this.phase = 'createuser';
             }
             else if (input == 'x') {
-                const player = await moodb.authenticateUser('molen', '4b8202c19fd44f6ce3ef76621a403d669d62a2fb1f903c17163d6dc35757aa94');
+                this.username = 'molen';
+                const player = await moodb.authenticateUser(this.username, '4b8202c19fd44f6ce3ef76621a403d669d62a2fb1f903c17163d6dc35757aa94');
                 return await this.onUserLoggedIn(player, state);
             }
             else {
