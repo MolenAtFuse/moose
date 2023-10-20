@@ -143,7 +143,7 @@ const infoCommands = {
     'shout': async (tokens, state) => {
         const playerName = state.player.title;
         const speech = tokens.join(' ');
-        const message = `${playerName}: "${speech}"\n`;
+        const message = `You hear ${playerName} shouting "${speech}"\n`;
         const remoteMessage = `\n${message}> `;
 
         mooser.forAllActiveUsers(theirState => {
