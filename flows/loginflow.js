@@ -1,6 +1,5 @@
 const moodb = require('../moodb');
 const mooser = require('../mooser');
-const mootils = require('../mootils');
 
 const AdventureFlow = require('./adventureflow').AdventureFlow;
 
@@ -24,6 +23,8 @@ class LoginFlow {
         state.player = player;
         state.username = player.title;
         player.state = state;
+
+        mooser.onUserLoggedIn(player, state);
 
         state.conn.write(`\nwelcome back, ${player.title}!\n\n`);
 

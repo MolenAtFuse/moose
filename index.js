@@ -4,6 +4,7 @@ const net = require('node:net');
 const ws = require('ws');
 
 const moodb = require('./moodb');
+const mooser = require('./mooser');
 const { clearInterval } = require('timers');
 const LoginFlow = require('./flows/loginflow').LoginFlow;
 
@@ -102,6 +103,7 @@ const attachWsServer = (server) => {
 
         ws.on('close', () => {
             console.log(`client disconnected: ${connId} (${state.username})`);
+            mooser.onUserLoggedOut(state.player);
             clearInterval(watchdog);
         });
 
@@ -145,6 +147,7 @@ const runTelnetServer = (port) => {
 
         c.on('end', () => {
             console.log(`client disconnected: ${connId} (${state.username})`);
+            mooser.onUserLoggedOut(state.player);
         });
         c.on('data', async data=>{
             // just ignore any telnet commands and hope that's ok
