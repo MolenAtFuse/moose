@@ -1,5 +1,6 @@
 const moodb = require('../moodb');
 const moo = require('../moo');
+const mooser = require('../mooser');
 
 
 // thanks stackoverflow: https://stackoverflow.com/a/18647776
@@ -125,9 +126,30 @@ const infoCommands = {
     },
 
 
+    'say': async(tokens, state) => {
+        const playerName = state.player.title;
+        const speech = tokens.join(' ');
+        const message = `${playerName}: "${speech}"\n`;
+        const remoteMessage = `\n${message}> `;
+
+        state.currLocation.getResidentPlayers().forEach(player => {
+            if (player.state) {
+                const remoteConn = (player.state !== state);
+                player.state.conn.sendText(remoteConn ? remoteMessage : message);
+            }
+        });
+    },
+
     'shout': async (tokens, state) => {
-        const message = tokens.join(' ');
-        throw new Error(`molen hasn't implemented this yet`);
+        const playerName = state.player.title;
+        const speech = tokens.join(' ');
+        const message = `${playerName}: "${speech}"\n`;
+        const remoteMessage = `\n${message}> `;
+
+        mooser.forAllActiveUsers(theirState => {
+            const remoteConn = (theirState !== state);
+            theirState.conn.sendText(remoteConn ? remoteMessage : message);
+        })
     },
 };
 

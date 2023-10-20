@@ -33,6 +33,15 @@ const onUserLoggedOut = (player) => {
     else {
         console.error(`tried to log out inactive player ${JSON.stringify(player)}`);
     }
+
+    player.state = null;
+};
+
+
+const forAllActiveUsers = (func) => {
+    for (const state of activeUserStates.values()) {
+        func(state);
+    }
 };
 
 
@@ -41,4 +50,6 @@ module.exports = {
 
     onUserLoggedIn,
     onUserLoggedOut,
+
+    forAllActiveUsers,
 };

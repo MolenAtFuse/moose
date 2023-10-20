@@ -102,6 +102,10 @@ class Place extends Thing {
         await this.save();
     }
 
+    getResidentPlayers() {
+        return this.holds.filter(thing => { return thing instanceof Player; });
+    }
+
     overview() {
         return `${this.title}. ${listToStr(this.holds, 'is', 'are')} here.`;
     }
@@ -112,10 +116,10 @@ class Place extends Thing {
             desc += '.';
         }
 
-        return `${underline(this.title)}${desc} ${this.getExitText()}\n${listToStr(this.holds, 'is', 'are')} here.`;
+        return `${underline(this.title)}${desc} ${this._getExitText()}\n${listToStr(this.holds, 'is', 'are')} here.`;
     }
 
-    getExitText() {
+    _getExitText() {
         const exitNames = [];
         for (const exitName of this.exits.keys()) {
             // heh...
